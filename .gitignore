@@ -1,0 +1,8 @@
+.DS_Store
+dist/
+*.modpkg
+*.zip
+*.gb
+*.gbc
+*.sav
+*.state
