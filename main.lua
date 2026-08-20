@@ -52,6 +52,11 @@ return function(mod)
   counts.dialogue = eachString("dialogue", function(id, value)
     mod.content.text:override(id, value)
   end)
+  counts.strings = eachString("strings", function(source, value)
+    mod.content.strings:override(source, value)
+  end)
+  local runtimeSentinel = "__deutsch_gold_runtime_active__"
+  mod.content.strings:override(runtimeSentinel, "active")
   counts.species = eachString("species_names", function(id, value)
     mod.content.pokemon:patch(id, { name = value })
   end)
@@ -104,7 +109,354 @@ return function(mod)
     end
   end
 
+  -- The German POKéCOM radio plaque is two tiles wider than the US one.
+  -- Its localized sheet therefore needs the matching eight-cell tilemap
+  -- delta; the clock and phone cards are byte-identical between both ROMs.
+  local gearDelta = catalog("pokegear_radio_tilemap")
+  local gear = data.gen2MenuGfx and data.gen2MenuGfx.pokegear
+  local radioMap = gear and gear.cards and gear.cards.radio
+  counts.gearCells = 0
+  if type(radioMap) == "table" and type(gearDelta.cells) == "table" then
+    local width = tonumber(gearDelta.width) or 20
+    local height = tonumber(gearDelta.height) or 18
+    for _, cell in ipairs(gearDelta.cells) do
+      local x, y, tile = tonumber(cell.x), tonumber(cell.y), tonumber(cell.tile)
+      if x and y and tile and x >= 0 and x < width and y >= 0 and y < height then
+        radioMap[y * width + x + 1] = tile
+        counts.gearCells = counts.gearCells + 1
+      end
+    end
+  end
+
+  -- The Gold intro imports its own US-ROM text table.  That table has higher
+  -- priority than OakSpeech's Strings-backed fallbacks, so replace the text
+  -- leaves with the official German-ROM blocks while keeping all pictures,
+  -- music and timing from the imported data.
+  local oak = catalog("oak_speech")
+  local oakData = mod.game and mod.game.oakSpeechData
+  if mod.game and type(oakData) ~= "table" then
+    oakData = {}
+    mod.game.oakSpeechData = oakData
+  end
+  if type(oakData) == "table" then
+    oakData.text = type(oakData.text) == "table" and oakData.text or {}
+    counts.oak = 0
+    for key, value in pairs(oak) do
+      if type(key) == "string" and type(value) == "string" and value ~= "" then
+        oakData.text[key] = value
+        counts.oak = counts.oak + 1
+      end
+    end
+  end
+
+  -- A number of Gen-2 screens still author labels and composed messages
+  -- directly instead of routing them through src.core.Strings.  Localize at
+  -- the three shared rendering boundaries so text is translated BEFORE its
+  -- width, wrapping and pagination are calculated.  The wrappers are
+  -- installed once and keep their implementation in module fields so a dev
+  -- hot reload updates the catalogs without stacking another wrapper.
+  local exact = {}
+  local function mergeExact(name)
+    for source, translated in pairs(catalog(name)) do
+      if type(source) == "string" and type(translated) == "string"
+          and translated ~= "" then
+        exact[source] = translated
+      end
+    end
+  end
+  mergeExact("runtime_ui")
+  mergeExact("runtime_battle")
+  mergeExact("runtime_system")
+
+  -- Some Gen-2 code composes visible strings from internal ids only after the
+  -- normal registries have returned.  Keep those ids intact in game data, but
+  -- resolve them at the render boundary (radio species, trainer items,
+  -- disabled moves and decoration species are the important callers).
+  local function aliasCatalog(name)
+    local aliases = {}
+    for source, translated in pairs(catalog(name)) do
+      if type(source) == "string" and type(translated) == "string"
+          and translated ~= "" and translated ~= source then
+        aliases[source] = translated
+      end
+    end
+    return aliases
+  end
+  local speciesAliases = aliasCatalog("species_names")
+  local moveAliases = aliasCatalog("move_names")
+  local itemAliases = aliasCatalog("item_names")
+
+  local patterns = {}
+  local function appendPatterns(name)
+    for _, rule in ipairs(catalog(name)) do
+      if type(rule) == "table" and type(rule[1]) == "string"
+          and type(rule[2]) == "string" then
+        patterns[#patterns + 1] = rule
+      end
+    end
+  end
+  appendPatterns("runtime_patterns")
+  appendPatterns("runtime_system_patterns")
+
+  local function escapePattern(value)
+    -- A source format's `%%` has already become one literal percent by the
+    -- time its composed text reaches the renderer.
+    value = value:gsub("%%%%", "%%")
+    return (value:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1"))
+  end
+
+  -- Pocket names are inserted into an otherwise already translated message,
+  -- so an exact lookup cannot see them on its own.  These four values are the
+  -- ItemPocketNames table from German Gold.
+  local embeddedPhrases = {
+    { "ITEM POCKET", "ITEM-TASCHE" },
+    { "KEY POCKET", "BASIS-ITEMS" },
+    { "BALL POCKET", "BALL-TASCHE" },
+    { "TM POCKET", "TM-TASCHE" },
+  }
+
+  local Pokegear
+  local MapRadio
+  local decorationStandalone = {
+    MAGNAPLANT = true,
+    TROPICPLANT = true,
+    JUMBOPLANT = true,
+    ["TOWN MAP"] = true,
+    ["SUPER NES"] = true,
+    NINTENDO64 = true,
+    ["SURF PIKACHU DOLL"] = true,
+    ["GOLD TROPHY"] = true,
+    ["SILVER TROPHY"] = true,
+  }
+  local function resolveEmbeddedNames(text)
+    for _, alias in ipairs(embeddedPhrases) do
+      text = text:gsub(escapePattern(alias[1]), alias[2])
+    end
+
+    -- Oak's and Mary's radio lines keep an internal species id until their
+    -- final concatenation.  Resolve only that field: globally replacing every
+    -- species-like token would also rename a user-chosen nickname.
+    local species = text:match("^OAK: ([%u%d_]+)$")
+    if species and speciesAliases[species] then
+      text = "OAK: " .. speciesAliases[species]
+    end
+    species = text:match("^MARY: ([%u%d_]+)'s$")
+    if species and speciesAliases[species] then
+      text = "MARY: " .. speciesAliases[species] .. "'s"
+    end
+
+    -- The Pokedex radio show draws just the id on one line.  The draw wrapper
+    -- below marks that narrow context so a nicknamed Pokemon with the same
+    -- spelling remains untouched everywhere else.
+    local drawingRadio = (Pokegear and Pokegear.__deutschGoldDrawingRadio)
+      or (MapRadio and MapRadio.__deutschGoldDrawingRadio)
+    if drawingRadio
+        and speciesAliases[text] then
+      text = speciesAliases[text]
+    end
+
+    -- Other callers expose ids inside distinctive, fully authored messages.
+    local lead, id = text:match("^(.- TRANSFORMED into )([%u%d_]+)!$")
+    if lead and speciesAliases[id] then
+      text = lead .. speciesAliases[id] .. "!"
+    end
+    local owner
+    owner, id = text:match("^(.-)'s ([%u%d_]+) was disabled!$")
+    if owner and moveAliases[id] then
+      text = owner .. "'s " .. moveAliases[id] .. " was disabled!"
+    end
+    owner, id = text:match("^(.-)'s ([%u%d_]+) is DISABLED!$")
+    if owner and moveAliases[id] then
+      text = owner .. "'s " .. moveAliases[id] .. " is DISABLED!"
+    end
+    local actor
+    actor, id = text:match("^(.-) used ([%u%d_]+)!$")
+    local usedName = id and (itemAliases[id] or moveAliases[id])
+    if actor and usedName then
+      text = actor .. " used " .. usedName .. "!"
+    end
+
+    -- Pokedex and decoration code likewise assembles a translated suffix
+    -- around an untranslated base id.
+    species = text:match("^([%u%d_]+)'S NEST$")
+    if species and speciesAliases[species] then
+      text = speciesAliases[species] .. "'S NEST"
+    end
+    local decoPrefix, decoText = "", text
+    if decoText:sub(1, 4) == "und " then
+      decoPrefix, decoText = "und ", decoText:sub(5)
+    end
+    if decoPrefix ~= "" and decorationStandalone[decoText]
+        and exact[decoText] then
+      text = decoPrefix .. exact[decoText]
+      decoText = ""
+    end
+    for _, suffix in ipairs({ " BED", " CARPET", " POSTER", " DOLL" }) do
+      if decoText:sub(-#suffix) == suffix then
+        local base = decoText:sub(1, -#suffix - 1)
+        local translatedBase = exact[base] or speciesAliases[base]
+        if translatedBase then text = decoPrefix .. translatedBase .. suffix end
+        break
+      end
+    end
+    local big = decoText:match("^BIG ([%u%d_]+)$")
+    if big then
+      text = decoPrefix .. "RIESIGES " .. (speciesAliases[big] or big)
+    end
+    return text
+  end
+
+  -- Direct UI code often formats a literal before handing it to the shared
+  -- renderer.  Compile those catalog keys into anchored matchers so e.g.
+  -- "Give %s" also catches the already-composed "Give PIKACHU".  Captures
+  -- are passed back through the translated format string in the same order.
+  local templates = {}
+  local formatToken = "%%[-+ #0]*%d*%.?%d*[cdiouxXeEfgGqs]"
+  for source, translated in pairs(exact) do
+    local cursor, chunks, specs = 1, {}, {}
+    while true do
+      local first, last = source:find(formatToken, cursor)
+      if not first then break end
+      chunks[#chunks + 1] = escapePattern(source:sub(cursor, first - 1))
+      local spec = source:sub(first, last)
+      local kind = spec:sub(-1)
+      specs[#specs + 1] = kind
+      if kind == "s" or kind == "q" then
+        chunks[#chunks + 1] = "(.-)"
+      elseif kind == "c" then
+        chunks[#chunks + 1] = "(.)"
+      else
+        chunks[#chunks + 1] = "([+-]?[%d%.eE]+)"
+      end
+      cursor = last + 1
+    end
+    if #specs > 0 then
+      chunks[#chunks + 1] = escapePattern(source:sub(cursor))
+      templates[#templates + 1] = {
+        source = source,
+        target = translated,
+        pattern = "^" .. table.concat(chunks) .. "$",
+        specs = specs,
+      }
+    end
+  end
+  table.sort(templates, function(a, b) return #a.source > #b.source end)
+
+  local unpackValues = unpack or table.unpack
+  local function localize(text)
+    if type(text) ~= "string" or text == "" then return text end
+    local translated = exact[text]
+    if translated then return translated end
+
+    -- Resolve embedded data ids before matching composed-message patterns.
+    text = resolveEmbeddedNames(text)
+    translated = exact[text]
+    if translated then return translated end
+
+    for _, rule in ipairs(templates) do
+      local values = { text:match(rule.pattern) }
+      if values[1] ~= nil then
+        for i, kind in ipairs(rule.specs) do
+          if kind == "c" then
+            values[i] = values[i]:byte()
+          elseif kind ~= "s" and kind ~= "q" then
+            values[i] = tonumber(values[i]) or values[i]
+          end
+        end
+        local ok, formatted = pcall(string.format, rule.target,
+          unpackValues(values, 1, #rule.specs))
+        -- Identity templates such as "%s." are useful catalog coverage for
+        -- one composing screen, but must not shadow a more specific dynamic
+        -- pattern (for example "PIKACHU was released.").
+        if ok and formatted ~= text then return formatted end
+      end
+    end
+
+    for _, rule in ipairs(patterns) do
+      local value, changed = text:gsub(rule[1], rule[2], 1)
+      if changed > 0 and value ~= text then return value end
+    end
+    return text
+  end
+
+  local Strings = require("src.core.Strings")
+  local function runtimeActive()
+    -- This lookup is both an edition guard and a hot-unload guard.  Once the
+    -- mod's registry is removed it falls back to the English source, so the
+    -- process-wide wrappers immediately become transparent again.
+    return GameVersion.get() == "gold"
+      and Strings.lookup(runtimeSentinel) == "active"
+  end
+
+  -- Mark only the radio's draw pass for the one line where the Pokedex Show
+  -- renders a bare internal species id.  All other radio lines have enough
+  -- surrounding text to be recognized without context.
+  Pokegear = require("src.ui.gen2.Pokegear")
+  if not Pokegear.__deutschGoldOriginalDrawRadio then
+    Pokegear.__deutschGoldOriginalDrawRadio = Pokegear.drawRadio
+    Pokegear.drawRadio = function(self)
+      local previous = Pokegear.__deutschGoldDrawingRadio
+      Pokegear.__deutschGoldDrawingRadio = true
+      Pokegear.__deutschGoldOriginalDrawRadio(self)
+      Pokegear.__deutschGoldDrawingRadio = previous
+    end
+  end
+  MapRadio = require("src.ui.gen2.MapRadio")
+  if not MapRadio.__deutschGoldOriginalDraw then
+    MapRadio.__deutschGoldOriginalDraw = MapRadio.draw
+    MapRadio.draw = function(self)
+      local previous = MapRadio.__deutschGoldDrawingRadio
+      MapRadio.__deutschGoldDrawingRadio = true
+      MapRadio.__deutschGoldOriginalDraw(self)
+      MapRadio.__deutschGoldDrawingRadio = previous
+    end
+  end
+
+  local Font = require("src.render.Font")
+  Font.__deutschGoldLocalize = localize
+  Font.__deutschGoldActive = runtimeActive
+  if not Font.__deutschGoldOriginalEncode then
+    Font.__deutschGoldOriginalEncode = Font.encode
+    Font.encode = function(text)
+      local active = Font.__deutschGoldActive
+      local translate = Font.__deutschGoldLocalize
+      if active and translate and active() then text = translate(text) end
+      return Font.__deutschGoldOriginalEncode(text)
+    end
+  end
+
+  local Chrome = require("src.ui.gen2.Chrome")
+  Chrome.__deutschGoldLocalize = localize
+  Chrome.__deutschGoldActive = runtimeActive
+  if not Chrome.__deutschGoldOriginalWrap then
+    Chrome.__deutschGoldOriginalWrap = Chrome.wrap
+    Chrome.wrap = function(text, width)
+      local active = Chrome.__deutschGoldActive
+      local translate = Chrome.__deutschGoldLocalize
+      if active and translate and active() then text = translate(text) end
+      return Chrome.__deutschGoldOriginalWrap(text, width)
+    end
+  end
+
+  local TextBox = require("src.render.TextBox")
+  TextBox.__deutschGoldLocalize = localize
+  TextBox.__deutschGoldActive = runtimeActive
+  if not TextBox.__deutschGoldOriginalNew then
+    TextBox.__deutschGoldOriginalNew = TextBox.new
+    TextBox.new = function(game, text, onDone, opts)
+      local active = TextBox.__deutschGoldActive
+      local translate = TextBox.__deutschGoldLocalize
+      if active and translate and active() then text = translate(text) end
+      return TextBox.__deutschGoldOriginalNew(game, text, onDone, opts)
+    end
+  end
+
+  counts.runtime = 0
+  for _ in pairs(exact) do counts.runtime = counts.runtime + 1 end
+  counts.patterns = #patterns
+
   mod.log:info(
-    "Deutsch für Pokémon Gold aktiv: %d Dialoge, %d Pokémon, %d Attacken, %d Items",
-    counts.dialogue or 0, counts.species or 0, counts.moves or 0, counts.items or 0)
+    "Deutsch für Pokémon Gold aktiv: %d Dialoge, %d Engine-Texte, %d Laufzeittexte, %d Muster, %d Eich-Texte, %d PokéCom-Kacheln",
+    counts.dialogue or 0, counts.strings or 0, counts.runtime or 0,
+    counts.patterns or 0, counts.oak or 0, counts.gearCells or 0)
 end

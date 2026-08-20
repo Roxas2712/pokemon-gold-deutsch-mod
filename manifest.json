@@ -1,7 +1,7 @@
 {
   "id": "deutsch-gold",
   "name": "Deutsch für Pokémon Gold",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "api": 2,
   "entry": "main.lua",
   "profile": "content",
@@ -16,6 +16,6 @@
   "conflicts": [],
   "incompatible": [],
   "experimental": true,
-  "description": "Originaltexte, Namen, Schrift und Grafiken der deutschen Goldenen Edition für die importierte US-ROM.",
+  "description": "Deutsche ROM-, Menü-, Kampf- und Systemtexte samt Schrift und editionsspezifischen Grafiken für Pokémon Gold.",
   "github": "Roxas2712/pokemon-gold-deutsch-mod"
 }

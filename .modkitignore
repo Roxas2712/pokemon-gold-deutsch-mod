@@ -4,8 +4,8 @@ dist/
 screenshots/
 tests/
 tests/translation_regression_test.lua
-tools/
-tools/fix_logo_n.py
+tools/**
+tools/fix_title_palette.py
 *.gb
 *.gbc
 *.sav
