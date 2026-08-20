@@ -53,6 +53,12 @@ versionsspezifischen Grafiken und einzelne Dialoge aber nicht.
 Den Release als ZIP bzw. Mod-Paket über den Mod-Manager installieren und nur
 für **Gold** aktivieren.
 
+Falls bereits Version 0.2.0 installiert war und das Hauptmenü weiterhin
+`NEW GAME` / `EXIT GAME` zeigt, die Mod unter **MODS** einmal für Gold
+aktivieren und das Spiel neu starten. Der gespeicherte Aus-Zustand einer alten
+Installation wird bei einem Update absichtlich nicht überschrieben. Neue
+Installationen ab 0.2.1 sind standardmäßig aktiv.
+
 ## Entwicklung
 
 Die Kataloge wurden durch strukturelles Zuordnen der englischen und deutschen

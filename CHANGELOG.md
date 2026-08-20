@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1
+
+- Die Mod wird bei einer frischen Installation nicht mehr wegen eines
+  irrtümlichen `experimental`-Flags still deaktiviert. Dadurch ist die gesamte
+  deutsche Übersetzung einschließlich Haupt- und Startmenü sofort aktiv.
+- Die Mod ist nun ausdrücklich als Sprachmod gekennzeichnet.
+- Regressionstest für Manifest-Aktivierung und die deutschen Hauptmenüeinträge
+  ergänzt.
+
 ## 0.2.0
 
 - Eichs vollständiges Intro mit den Textblöcken der deutschen Gold-ROM

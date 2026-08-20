@@ -9,6 +9,16 @@ local function loadCatalog(name)
   return value
 end
 
+local manifestHandle = assert(io.open(root .. "/manifest.json", "rb"))
+local manifestText = assert(manifestHandle:read("*a"))
+manifestHandle:close()
+assert(manifestText:match('"version"%s*:%s*"0%.2%.1"'),
+  "release version is not 0.2.1")
+assert(manifestText:match('"experimental"%s*:%s*false'),
+  "translation mod must not default to disabled")
+assert(manifestText:match('"language"%s*:%s*true'),
+  "translation mod is not marked as a language mod")
+
 local dialogue = loadCatalog("dialogue")
 local total, nonempty = 0, 0
 for key, value in pairs(dialogue) do
@@ -63,6 +73,10 @@ local runtimeUiCount = validateRuntimeExact("runtime_ui", 872)
 local runtimeBattleCount = validateRuntimeExact("runtime_battle")
 local runtimeSystemCount = validateRuntimeExact("runtime_system", 12)
 local runtimeUi = loadCatalog("runtime_ui")
+assert(runtimeUi["CONTINUE"] == "WEITER"
+    and runtimeUi["NEW GAME"] == "NEUES SPIEL"
+    and runtimeUi["EXIT GAME"] == "SPIEL ENDE",
+  "Gold main-menu labels are not German")
 assert(runtimeUi["Today's WEDNESDAY,"] == "Es ist MITTWOCH!",
   "composed radio weekday is not German")
 assert(runtimeUi["“OAK's <PK><MN> Talk”"] == "“EICHs <PK><MN>-Talk”",
