@@ -1,7 +1,7 @@
 -- Official German text and graphics for the imported US Pokemon Gold data.
 return function(mod)
   local GameVersion = require("src.core.GameVersion")
-  if GameVersion.get() ~= "gold" then
+  if not GameVersion.isGold() then
     mod.log:info("Deutsch für Pokémon Gold: in dieser Edition nicht aktiv")
     return
   end
@@ -384,7 +384,7 @@ return function(mod)
     -- This lookup is both an edition guard and a hot-unload guard.  Once the
     -- mod's registry is removed it falls back to the English source, so the
     -- process-wide wrappers immediately become transparent again.
-    return GameVersion.get() == "gold"
+    return GameVersion.isGold()
       and Strings.lookup(runtimeSentinel) == "active"
   end
 

@@ -12,12 +12,18 @@ end
 local manifestHandle = assert(io.open(root .. "/manifest.json", "rb"))
 local manifestText = assert(manifestHandle:read("*a"))
 manifestHandle:close()
-assert(manifestText:match('"version"%s*:%s*"0%.2%.1"'),
-  "release version is not 0.2.1")
+assert(manifestText:match('"version"%s*:%s*"0%.2%.2"'),
+  "release version is not 0.2.2")
 assert(manifestText:match('"experimental"%s*:%s*false'),
   "translation mod must not default to disabled")
 assert(manifestText:match('"language"%s*:%s*true'),
   "translation mod is not marked as a language mod")
+local rawGames = assert(manifestText:match('"games"%s*:%s*(%b[])'),
+  "translation mod has no raw games scope")
+assert(rawGames:gsub("%s+", "") == '["gold"]',
+  "translation mod must target exactly Gold")
+assert(not manifestText:match('"gen2compat"%s*:'),
+  "legacy gen2compat would widen Gold to every Gen-2 game")
 
 local dialogue = loadCatalog("dialogue")
 local total, nonempty = 0, 0

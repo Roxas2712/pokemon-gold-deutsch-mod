@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.2
+
+- Den veralteten Manifest-Schalter `gen2compat` entfernt. Seit der
+  Silber-Unterstützung würde er zusätzlich zur expliziten Gold-Auswahl alle
+  Spiele der zweiten Generation freigeben und dadurch Gold-Grafiken auch in
+  Pokémon Silber einblenden.
+- Der Zielumfang ist nun eindeutig auf `games: ["gold"]` begrenzt; ein
+  Regressionstest schützt diese Einstellung und das parallele Installieren
+  editionsspezifischer Sprachmods.
+
 ## 0.2.1
 
 - Die Mod wird bei einer frischen Installation nicht mehr wegen eines

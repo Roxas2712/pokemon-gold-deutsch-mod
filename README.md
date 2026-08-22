@@ -14,6 +14,10 @@ Center und Markt.
 
 ![Titelbild der Goldenen Edition](overrides/title/title_screen.png)
 
+## Download
+
+[Deutsch für Pokémon Gold 0.2.2 als ZIP herunterladen](https://github.com/Roxas2712/pokemon-gold-deutsch-mod/releases/download/v0.2.2/deutsch-gold-0.2.2.zip)
+
 ## Enthalten
 
 - 3.042 ROM-Dialogtexte sowie zwei leere ROM-Sentinel-Einträge
@@ -44,14 +48,20 @@ neue Fundstellen bitte mit Screenshot und Spielstand melden.
 - eine vom Spieler selbst importierte, unterstützte US-ROM von Pokémon Gold
 
 Die Mod enthält keine ROM und verändert keine ROM-Datei. Pokémon Silber wird
-erst separat ergänzt, sobald die Silber-Unterstützung und eine geprüfte
-Silber-Datenbasis verfügbar sind; große Teile der Texte sind gleich, die
-versionsspezifischen Grafiken und einzelne Dialoge aber nicht.
+von einer eigenen Übersetzungs-Mod abgedeckt; große Teile der Texte sind zwar
+gleich, die versionsspezifischen Grafiken und einzelne Daten aber nicht.
+Version 0.2.2 dieser Mod ist deshalb im Manifest ausschließlich Pokémon Gold
+zugeordnet und kann neben der separaten Silber-Mod installiert bleiben.
 
 ## Installation
 
 Den Release als ZIP bzw. Mod-Paket über den Mod-Manager installieren und nur
 für **Gold** aktivieren.
+
+Bei Gen1Recomp-Versionen mit Silber-Unterstützung ersetzt Version 0.2.2 den
+alten, generationsweiten Kompatibilitätsschalter durch die eindeutige
+Gold-Auswahl. Dadurch werden die Gold-Texte und -Grafiken bei einem Silber-Start
+nicht mehr geladen.
 
 Falls bereits Version 0.2.0 installiert war und das Hauptmenü weiterhin
 `NEW GAME` / `EXIT GAME` zeigt, die Mod unter **MODS** einmal für Gold
