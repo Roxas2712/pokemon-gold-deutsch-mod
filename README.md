@@ -1,5 +1,13 @@
 # Deutsch für Pokémon Gold
 
+> **Eingestellt / archiviert:** Diese editionsspezifische Einzel-Mod erhält
+> keine weiteren Updates. Die gepflegte Nachfolgeversion ist
+> **Translation German Universal**, die Pokémon Rot, Blau, Gelb, Gold und
+> Silber in einer einzigen Mod abdeckt.
+>
+> - [Universal-Repository](https://github.com/Roxas2712/translation-german-universal)
+> - [Neueste Universal-Veröffentlichung](https://github.com/Roxas2712/translation-german-universal/releases/latest)
+
 Deutsche Übersetzungs-Mod für die Gold-Unterstützung von Gen1Recomp. Sie
 ersetzt die Texte und Namen der importierten US-Version durch die Inhalte der
 offiziellen deutschen **Goldenen Edition** und übernimmt die dazugehörige
